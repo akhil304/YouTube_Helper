@@ -316,6 +316,77 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--sub); border-radius: 3px; }
 
+  /* ── MOBILE HAMBURGER ── */
+  .hamburger { display: none; background: none; border: none; color: var(--text); font-size: 22px; cursor: pointer; padding: 4px 8px; line-height: 1; }
+  .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 99; }
+  .sidebar-overlay.open { display: block; }
+
+  /* ── BOTTOM NAV (mobile) ── */
+  .bottom-nav {
+    display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+    background: var(--surface); border-top: 1px solid var(--border);
+    padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+  }
+  .bottom-nav-inner { display: flex; justify-content: space-around; }
+  .bn-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 4px 12px; border-radius: 10px; transition: background 0.12s; }
+  .bn-item.active { background: rgba(255,61,61,0.1); }
+  .bn-icon { font-size: 20px; line-height: 1; }
+  .bn-label { font-size: 9px; font-weight: 600; color: var(--muted); letter-spacing: 0.3px; }
+  .bn-item.active .bn-label { color: var(--accent); }
+
+  /* ── TAKEOUT IMPORT ── */
+  .takeout-drop {
+    border: 2px dashed var(--sub); border-radius: 14px; padding: 36px 24px;
+    text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 20px;
+  }
+  .takeout-drop:hover, .takeout-drop.drag-over { border-color: var(--accent); background: rgba(255,61,61,0.05); }
+  .takeout-drop-icon { font-size: 40px; margin-bottom: 10px; }
+  .takeout-drop-title { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .takeout-drop-sub { font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .takeout-progress { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; display: none; }
+  .takeout-progress.visible { display: block; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); transition: transform 0.25s cubic-bezier(0.4,0,0.2,1); z-index: 200; }
+    .sidebar.open { transform: translateX(0); }
+    .main { margin-left: 0; }
+    .topbar { padding: 12px 16px; gap: 10px; }
+    .topbar-title { font-size: 15px; }
+    .hamburger { display: block; }
+    .time-chip { display: none; }
+    .mood-selector { gap: 2px; }
+    .mood-btn { padding: 4px 7px; font-size: 14px; }
+    .page { padding: 16px 16px 80px; }
+    .smart-hero { flex-direction: column; align-items: flex-start; gap: 16px; padding: 20px; }
+    .hero-stat { border-left: none; border-top: 1px solid var(--border); padding: 12px 0 0; width: 100%; text-align: left; display: flex; align-items: center; gap: 12px; }
+    .hero-stat-value { font-size: 24px; }
+    .hero-title { font-size: 20px; }
+    .hero-action { flex-wrap: wrap; }
+    .grid-3 { grid-template-columns: 1fr; gap: 10px; }
+    .grid-2 { grid-template-columns: 1fr; gap: 10px; }
+    .time-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .reco-grid { grid-template-columns: 1fr; }
+    .pt-head { display: none; }
+    .pt-row { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; }
+    .pt-num { display: none; }
+    .pt-watch { font-size: 10px; }
+    .pt-actions { justify-content: flex-start; }
+    .fingerprint-grid { grid-template-columns: 1fr; }
+    .setting-row { flex-wrap: wrap; gap: 10px; }
+    .text-input { width: 100%; }
+    .cat-tabs { overflow-x: auto; padding-bottom: 4px; flex-wrap: nowrap; }
+    .cat-tabs::-webkit-scrollbar { display: none; }
+    .cat-tab { white-space: nowrap; flex-shrink: 0; }
+    .chat-wrap { height: calc(100vh - 180px); }
+    .bottom-nav { display: block; }
+  }
+  @media (max-width: 400px) {
+    .hero-title { font-size: 17px; }
+    .stat-card-value { font-size: 22px; }
+    .time-grid { grid-template-columns: 1fr; }
+  }
+
   /* ── EMPTY STATE ── */
   .empty { text-align: center; padding: 48px 24px; color: var(--muted); }
   .empty-icon { font-size: 40px; margin-bottom: 12px; }
@@ -353,6 +424,7 @@
     <div class="nav-item" onclick="showPage('entertainment', this)"><span class="icon">🎬</span> Entertainment</div>
     <div class="nav-item" onclick="showPage('podcasts', this)"><span class="icon">🎙️</span> Podcasts</div>
     <div class="nav-item" onclick="showPage('history', this)"><span class="icon">📋</span> History</div>
+    <div class="nav-item" onclick="showPage('takeout', this)"><span class="icon">📥</span> Import Takeout</div>
 
     <div class="nav-section">Insights</div>
     <div class="nav-item" onclick="showPage('usage', this)"><span class="icon">📊</span> Usage Monitor</div>
@@ -368,10 +440,12 @@
     </button>
   </div>
 </aside>
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
 
 <!-- ══ MAIN ══ -->
 <main class="main">
   <div class="topbar">
+    <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu">☰</button>
     <div class="topbar-title" id="page-title">Dashboard</div>
     <div class="topbar-right">
       <div class="time-chip" id="live-time">--:-- --</div>
@@ -551,6 +625,85 @@
     </div>
   </div>
 
+
+  <!-- ══ TAKEOUT IMPORT ══ -->
+  <div class="page" id="page-takeout">
+    <div class="settings-card" style="margin-bottom:20px">
+      <h3>📱 Import from Any Device</h3>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:0">
+        Watch YouTube on your phone, tablet, smart TV? No problem. Google keeps all your history in one place.
+        Export it with <strong style="color:var(--text)">Google Takeout</strong> and import it here — all devices, one history.
+      </p>
+    </div>
+
+    <div class="section-head"><div class="section-title">Step 1 — Download Your Data</div></div>
+    <div class="settings-card">
+      <div class="setup-steps">
+        <div class="setup-step">
+          <div class="step-num">1</div>
+          <div class="step-info">
+            <div class="step-label">Go to Google Takeout</div>
+            <div class="step-desc">Visit <a href="https://takeout.google.com" target="_blank" style="color:var(--accent)">takeout.google.com</a> — sign in with the same Google account you use for YouTube</div>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="step-num">2</div>
+          <div class="step-info">
+            <div class="step-label">Select only YouTube & YouTube Music</div>
+            <div class="step-desc">Click "Deselect all" then tick only ✅ YouTube and YouTube Music to keep the file small</div>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="step-num">3</div>
+          <div class="step-info">
+            <div class="step-label">Choose JSON format</div>
+            <div class="step-desc">Click "Multiple formats" → set History format to <strong style="color:var(--text)">JSON</strong> (not HTML)</div>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="step-num">4</div>
+          <div class="step-info">
+            <div class="step-label">Export & Download</div>
+            <div class="step-desc">Click "Next step" → "Export once" → Google emails you a .zip file (usually within minutes)</div>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="step-num">5</div>
+          <div class="step-info">
+            <div class="step-label">Extract & Import</div>
+            <div class="step-desc">Unzip → find <code style="color:var(--accent)">Takeout/YouTube and YouTube Music/history/watch-history.json</code> → drag it below</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-head"><div class="section-title">Step 2 — Drop Your File</div></div>
+    <div class="takeout-drop" id="takeout-drop"
+         onclick="document.getElementById('takeout-file').click()"
+         ondragover="event.preventDefault();this.classList.add('drag-over')"
+         ondragleave="this.classList.remove('drag-over')"
+         ondrop="handleTakeoutDrop(event)">
+      <div class="takeout-drop-icon">📂</div>
+      <div class="takeout-drop-title">Drop watch-history.json here</div>
+      <div class="takeout-drop-sub">or click to browse — works on mobile too<br><span style="color:var(--sub);font-size:11px">File stays on your device, never uploaded anywhere</span></div>
+      <input type="file" id="takeout-file" accept=".json" style="display:none" onchange="handleTakeoutFile(this.files[0])" />
+    </div>
+
+    <div class="takeout-progress" id="takeout-progress">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:13px;font-weight:600" id="takeout-status">Processing…</span>
+        <span style="font-size:13px;font-weight:700;color:var(--accent)" id="takeout-count">0 / 0</span>
+      </div>
+      <div class="usage-bar"><div class="usage-bar-fill fill-green" id="takeout-bar" style="width:0%"></div></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px" id="takeout-detail">Reading file…</div>
+    </div>
+
+    <div class="section-head" style="margin-top:8px"><div class="section-title">Imported Videos</div><div class="section-action" id="takeout-clear" onclick="clearTakeout()" style="display:none;color:var(--accent)">✕ Clear import</div></div>
+    <div class="playlist-table" id="takeout-results">
+      <div class="empty"><div class="empty-icon">📥</div><div class="empty-title">No import yet</div><div class="empty-desc">Drop your watch-history.json above to load your full YouTube history from all devices.</div></div>
+    </div>
+  </div>
+
   <!-- ══ SETTINGS ══ -->
   <div class="page" id="page-settings">
     <!-- OAuth / YouTube Connection -->
@@ -670,6 +823,17 @@
 
 </main>
 </div>
+
+<!-- ══ BOTTOM NAV (mobile) ══ -->
+<nav class="bottom-nav">
+  <div class="bottom-nav-inner">
+    <div class="bn-item active" id="bn-dashboard" onclick="showPage('dashboard',null);setBnActive('bn-dashboard')"><div class="bn-icon">🏠</div><div class="bn-label">Home</div></div>
+    <div class="bn-item" id="bn-recommendations" onclick="showPage('recommendations',null);setBnActive('bn-recommendations')"><div class="bn-icon">✨</div><div class="bn-label">For You</div></div>
+    <div class="bn-item" id="bn-history" onclick="showPage('history',null);setBnActive('bn-history')"><div class="bn-icon">📋</div><div class="bn-label">History</div></div>
+    <div class="bn-item" id="bn-chat" onclick="showPage('chat',null);setBnActive('bn-chat')"><div class="bn-icon">💬</div><div class="bn-label">Chat</div></div>
+    <div class="bn-item" id="bn-settings" onclick="showPage('settings',null);setBnActive('bn-settings')"><div class="bn-icon">⚙️</div><div class="bn-label">Settings</div></div>
+  </div>
+</nav>
 
 <!-- ══ TAG EDITOR MODAL ══ -->
 <div class="modal-overlay" id="tag-modal">
@@ -1284,6 +1448,191 @@ async function doPush(createRelease) {
     document.getElementById('gh-push-icon').textContent = '🚀';
   }
 }
+
+// ══════════════════════════════════
+// MOBILE NAV
+// ══════════════════════════════════
+function toggleSidebar() {
+  document.querySelector('.sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+}
+function closeSidebar() {
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+}
+function setBnActive(id) {
+  document.querySelectorAll('.bn-item').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+}
+
+// Patch showPage to also close sidebar on mobile and sync bottom nav
+const _origShowPage = showPage;
+showPage = function(id, el) {
+  _origShowPage(id, el);
+  closeSidebar();
+  // Sync bottom nav
+  const bnMap = { dashboard:'bn-dashboard', recommendations:'bn-recommendations', history:'bn-history', chat:'bn-chat', settings:'bn-settings' };
+  if (bnMap[id]) setBnActive(bnMap[id]);
+};
+
+// ══════════════════════════════════
+// YOUTUBE TAKEOUT IMPORT
+// ══════════════════════════════════
+function handleTakeoutDrop(e) {
+  e.preventDefault();
+  document.getElementById('takeout-drop').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) handleTakeoutFile(file);
+}
+
+function handleTakeoutFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => parseTakeout(e.target.result);
+  reader.readAsText(file, 'utf-8');
+}
+
+function parseTakeout(jsonText) {
+  const prog = document.getElementById('takeout-progress');
+  prog.classList.add('visible');
+  document.getElementById('takeout-status').textContent = 'Parsing file…';
+  document.getElementById('takeout-detail').textContent = 'Reading JSON…';
+
+  let raw;
+  try {
+    raw = JSON.parse(jsonText);
+  } catch(e) {
+    document.getElementById('takeout-status').textContent = '✗ Invalid JSON file';
+    document.getElementById('takeout-detail').textContent = 'Make sure you selected watch-history.json and chose JSON format in Takeout.';
+    return;
+  }
+
+  // Google Takeout format: array of { header, title, titleUrl, subtitles, time, ... }
+  // or wrapped in { "Watch history": [...] }
+  let items = Array.isArray(raw) ? raw : (raw['Watch history'] || raw['watch-history'] || []);
+  // Filter to actual watches (have titleUrl with youtube.com)
+  items = items.filter(i => i.titleUrl && i.titleUrl.includes('youtube.com') && i.title && i.title !== 'Watched a video that has been removed');
+
+  const total = items.length;
+  document.getElementById('takeout-count').textContent = `0 / ${total}`;
+  document.getElementById('takeout-detail').textContent = `Found ${total} videos across all your devices`;
+
+  if (total === 0) {
+    document.getElementById('takeout-status').textContent = '⚠ No videos found';
+    document.getElementById('takeout-detail').textContent = 'Check that the file is watch-history.json and format was set to JSON in Google Takeout.';
+    return;
+  }
+
+  // Process in chunks so UI stays responsive
+  const CHUNK = 100;
+  let processed = 0;
+  const newVideos = [];
+
+  function processChunk() {
+    const end = Math.min(processed + CHUNK, total);
+    for (let i = processed; i < end; i++) {
+      const item = items[i];
+      const vidId = (item.titleUrl.match(/v=([^&]+)/) || [])[1] || ('tk_' + i);
+      const channel = (item.subtitles && item.subtitles[0]) ? item.subtitles[0].name : 'Unknown';
+      const title = item.title.replace(/^Watched\s+/i, '');
+      const watchedAt = item.time ? item.time.slice(0, 16).replace('T', ' ') : '';
+      newVideos.push({
+        id:        vidId,
+        title,
+        channel,
+        category:  null,
+        tags:      [],
+        watchedAt,
+        source:    'takeout',
+        duration:  0,
+      });
+    }
+    processed = end;
+    const pct = Math.round((processed / total) * 100);
+    document.getElementById('takeout-bar').style.width = pct + '%';
+    document.getElementById('takeout-count').textContent = `${processed} / ${total}`;
+    document.getElementById('takeout-detail').textContent = `Processed ${processed} of ${total} videos…`;
+
+    if (processed < total) {
+      requestAnimationFrame(processChunk);
+    } else {
+      finaliseTakeout(newVideos);
+    }
+  }
+  processChunk();
+}
+
+function finaliseTakeout(newVideos) {
+  // Auto-categorise by keyword matching on title/channel
+  const RULES = [
+    [['music','song','playlist','hip hop','jazz','lofi','lo-fi','beats','album','rap','rock','pop','rnb','edm','piano','guitar','vevo'], 'music'],
+    [['workout','hiit','exercise','fitness','gym','yoga','pilates','running','strength','cardio'], 'workout'],
+    [['podcast','interview','episode','talk show'], 'podcast'],
+    [['tutorial','course','how to','explained','lesson'], 'education'],
+    [['news','breaking','update','politics'], 'news'],
+  ];
+  newVideos.forEach(v => {
+    const text = (v.title + ' ' + v.channel).toLowerCase();
+    for (const [kws, cat] of RULES) {
+      if (kws.some(k => text.includes(k))) { v.category = cat; break; }
+    }
+    if (!v.category) v.category = 'entertainment';
+  });
+
+  // Merge with existing — deduplicate by id
+  const existingIds = new Set(STATE.videos.map(v => v.id));
+  const toAdd = newVideos.filter(v => !existingIds.has(v.id));
+  STATE.videos = [...toAdd, ...STATE.videos];
+  localStorage.setItem('yt_videos', JSON.stringify(STATE.videos));
+
+  document.getElementById('takeout-status').textContent = `✓ Import complete`;
+  document.getElementById('takeout-detail').textContent = `${toAdd.length} new videos added (${newVideos.length - toAdd.length} duplicates skipped)`;
+  document.getElementById('takeout-bar').style.width = '100%';
+  document.getElementById('takeout-clear').style.display = 'block';
+
+  // Render results table
+  renderTakeoutResults(newVideos.slice(0, 100));
+  // Refresh rest of dashboard
+  updateStats();
+  renderHistory();
+  renderCategoryPage('music');
+  renderCategoryPage('entertainment');
+  renderCategoryPage('podcast');
+}
+
+function renderTakeoutResults(videos) {
+  const el = document.getElementById('takeout-results');
+  el.innerHTML = `
+    <div class="pt-head">
+      <div class="pt-col">#</div>
+      <div class="pt-col">Title</div>
+      <div class="pt-col">Channel</div>
+      <div class="pt-col">Category</div>
+      <div class="pt-col">Watched</div>
+      <div class="pt-col"></div>
+    </div>
+    ${videos.map((v,i) => `
+      <div class="pt-row">
+        <div class="pt-num">${i+1}</div>
+        <div class="pt-info"><div class="pt-name">${v.title}</div></div>
+        <div class="pt-channel" style="font-size:11px;color:var(--muted)">${v.channel}</div>
+        <div><span class="pill pill-${catColor(v.category)}">${catEmoji(v.category)} ${v.category}</span></div>
+        <div class="pt-watch">${v.watchedAt ? v.watchedAt.slice(0,10) : '—'}</div>
+        <div class="pt-actions"><button class="action-btn" onclick="openTagEditor('${v.id}')">✏️ Tags</button></div>
+      </div>`).join('')}
+    ${videos.length === 100 ? '<div style="text-align:center;padding:14px;font-size:12px;color:var(--muted)">Showing first 100 — all videos loaded into History</div>' : ''}`;
+}
+
+function clearTakeout() {
+  STATE.videos = STATE.videos.filter(v => v.source !== 'takeout');
+  localStorage.setItem('yt_videos', JSON.stringify(STATE.videos));
+  document.getElementById('takeout-progress').classList.remove('visible');
+  document.getElementById('takeout-results').innerHTML = '<div class="empty"><div class="empty-icon">📥</div><div class="empty-title">Import cleared</div><div class="empty-desc">Drop watch-history.json again to re-import.</div></div>';
+  document.getElementById('takeout-clear').style.display = 'none';
+  updateStats(); renderHistory();
+}
+
 </script>
 </body>
 </html>
