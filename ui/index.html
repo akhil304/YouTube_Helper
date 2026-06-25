@@ -576,18 +576,62 @@
 
     <!-- GitHub Sync -->
     <div class="settings-card">
-      <h3>🐙 GitHub Sync</h3>
+      <h3>🐙 GitHub Sync & Release</h3>
       <div class="setting-row">
-        <div class="setting-info"><div class="setting-label">Repository</div><div class="setting-desc">akhil304 / Personal-Entertainment-Guide</div></div>
-        <span class="pill pill-green">✓ Configured</span>
+        <div class="setting-info"><div class="setting-label">Repository</div><div class="setting-desc">akhil304 / YouTube_Helper</div></div>
+        <a href="https://github.com/akhil304/YouTube_Helper" target="_blank" class="pill pill-green" style="text-decoration:none">↗ View Repo</a>
       </div>
       <div class="setting-row">
-        <div class="setting-info"><div class="setting-label">GitHub Token</div><div class="setting-desc">Personal Access Token with repo scope</div></div>
-        <input class="text-input" id="setting-gh-token" type="password" placeholder="ghp_••••••••" />
+        <div class="setting-info"><div class="setting-label">GitHub Token</div><div class="setting-desc">Classic PAT with <code>repo</code> scope — stored in localStorage only</div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input class="text-input" id="setting-gh-token" type="password" placeholder="ghp_••••••••" />
+          <button class="btn-ghost" onclick="saveGhToken()">Save</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-info"><div class="setting-label">Token Status</div><div class="setting-desc">Verify your token can reach the repo</div></div>
+        <button class="btn-ghost" onclick="verifyGhToken()">Verify</button>
       </div>
       <div class="setting-row">
         <div class="setting-info"><div class="setting-label">Auto-Push History</div><div class="setting-desc">Sync watch history to GitHub on every session</div></div>
         <label class="toggle"><input type="checkbox" id="toggle-gh-sync" /><span class="toggle-slider"></span></label>
+      </div>
+
+      <!-- Push Release Panel -->
+      <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border)">
+        <div style="font-size:13px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px">
+          🚀 Push New Release
+          <span class="pill pill-blue" id="gh-current-version">v1.0.0</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:600">VERSION TAG</div>
+            <input class="text-input" id="gh-release-tag" value="v1.1.0" style="width:100%" placeholder="v1.1.0" />
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:600">RELEASE NAME</div>
+            <input class="text-input" id="gh-release-name" value="YouTube Helper v1.1.0" style="width:100%" placeholder="Release name" />
+          </div>
+        </div>
+        <div style="margin-bottom:12px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:600">RELEASE NOTES</div>
+          <textarea id="gh-release-notes" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:var(--font);font-size:12px;color:var(--text);resize:vertical;min-height:80px;line-height:1.6" placeholder="What changed in this release?&#10;- Feature A&#10;- Bug fix B"></textarea>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <button class="btn-primary" onclick="pushRelease()" id="gh-push-btn" style="display:flex;align-items:center;gap:7px">
+            <span id="gh-push-icon">🚀</span> Push to GitHub
+          </button>
+          <button class="btn-ghost" onclick="pushFilesOnly()" id="gh-files-btn">📁 Push Files Only</button>
+          <span id="gh-push-status" style="font-size:12px;color:var(--muted)"></span>
+        </div>
+      </div>
+
+      <!-- Push Log -->
+      <div style="margin-top:16px">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600">PUSH LOG</div>
+        <div id="gh-push-log" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:var(--mono);font-size:11px;color:var(--muted);min-height:48px;max-height:160px;overflow-y:auto;line-height:1.8">
+          Ready. Token saved → click "Push to GitHub" to release.
+        </div>
       </div>
     </div>
 
@@ -1041,6 +1085,204 @@ function getTimeSlot() {
   if (h>=13&&h<18)return 'Afternoon (1–6 PM)';
   if (h>=18&&h<21)return 'Evening (6–9 PM)';
   return 'Late Night';
+}
+
+// ══════════════════════════════════
+// GITHUB SYNC ENGINE
+// ══════════════════════════════════
+const GH_USER = 'akhil304';
+const GH_REPO = 'YouTube_Helper';
+const GH_BRANCH = 'main';
+
+function ghLog(msg, color) {
+  const log = document.getElementById('gh-push-log');
+  const ts  = new Date().toLocaleTimeString('en-US', { hour12: false });
+  const col = color || 'var(--muted)';
+  log.innerHTML += `<span style="color:${col}">[${ts}] ${msg}</span>\n`;
+  log.scrollTop  = log.scrollHeight;
+}
+
+function saveGhToken() {
+  const token = document.getElementById('setting-gh-token').value.trim();
+  if (!token) { alert('Paste your GitHub token first.'); return; }
+  localStorage.setItem('gh_token', token);
+  document.getElementById('step4-status').textContent = '✓ Saved';
+  document.getElementById('step4-status').className   = 'step-status step-ok';
+  ghLog('Token saved to localStorage ✓', 'var(--green)');
+}
+
+async function ghFetch(method, path, body) {
+  const token = localStorage.getItem('gh_token');
+  if (!token) throw new Error('No GitHub token — save it in Settings first.');
+  const res = await fetch(`https://api.github.com${path}`, {
+    method,
+    headers: {
+      'Authorization': `token ${token}`,
+      'Accept':        'application/vnd.github+json',
+      'Content-Type':  'application/json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+  return data;
+}
+
+async function verifyGhToken() {
+  ghLog('Verifying token…');
+  try {
+    const repo = await ghFetch('GET', `/repos/${GH_USER}/${GH_REPO}`);
+    ghLog(`✓ Connected to ${repo.full_name} (${repo.private ? 'private' : 'public'})`, 'var(--green)');
+    document.getElementById('gh-push-status').textContent = '✓ Token valid';
+    document.getElementById('gh-push-status').style.color = 'var(--green)';
+  } catch(e) {
+    ghLog(`✗ ${e.message}`, 'var(--accent)');
+    document.getElementById('gh-push-status').textContent = '✗ Invalid token';
+    document.getElementById('gh-push-status').style.color = 'var(--accent)';
+  }
+}
+
+async function createBlob(content) {
+  const res = await ghFetch('POST', `/repos/${GH_USER}/${GH_REPO}/git/blobs`, {
+    content,
+    encoding: 'utf-8',
+  });
+  return res.sha;
+}
+
+// Files to include in every push — content fetched from the page itself
+function getFilesToPush() {
+  // Grab the current full HTML of the dashboard
+  const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  return { 'ui/index.html': html };
+}
+
+async function pushFilesOnly() {
+  await doPush(false);
+}
+
+async function pushRelease() {
+  await doPush(true);
+}
+
+async function doPush(createRelease) {
+  const token = localStorage.getItem('gh_token');
+  if (!token) {
+    ghLog('✗ No token — save your GitHub token in Settings first.', 'var(--accent)');
+    return;
+  }
+
+  const pushBtn  = document.getElementById('gh-push-btn');
+  const filesBtn = document.getElementById('gh-files-btn');
+  const status   = document.getElementById('gh-push-status');
+  pushBtn.disabled = true;
+  filesBtn.disabled = true;
+  document.getElementById('gh-push-icon').textContent = '⏳';
+  status.textContent = 'Pushing…';
+  status.style.color = 'var(--gold)';
+  document.getElementById('gh-push-log').innerHTML = '';
+
+  try {
+    // 1. Get HEAD SHA
+    ghLog('Fetching HEAD SHA…');
+    const ref    = await ghFetch('GET', `/repos/${GH_USER}/${GH_REPO}/git/refs/heads/${GH_BRANCH}`);
+    const headSha = ref.object.sha;
+    ghLog(`HEAD: ${headSha.slice(0,8)}`);
+
+    // 2. Get base tree
+    const commitInfo = await ghFetch('GET', `/repos/${GH_USER}/${GH_REPO}/git/commits/${headSha}`);
+    const baseTree   = commitInfo.tree.sha;
+
+    // 3. Create blobs
+    const files   = getFilesToPush();
+    const entries = [];
+    for (const [path, content] of Object.entries(files)) {
+      ghLog(`  Uploading ${path}…`);
+      const sha = await createBlob(content);
+      entries.push({ path, mode: '100644', type: 'blob', sha });
+      ghLog(`  ✓ ${path}`, 'var(--green)');
+    }
+
+    // 4. Create tree
+    ghLog('Creating tree…');
+    const tag       = document.getElementById('gh-release-tag').value.trim() || 'v1.x';
+    const relName   = document.getElementById('gh-release-name').value.trim();
+    const notes     = document.getElementById('gh-release-notes').value.trim();
+    const tree = await ghFetch('POST', `/repos/${GH_USER}/${GH_REPO}/git/trees`, {
+      base_tree: baseTree,
+      tree: entries,
+    });
+
+    // 5. Create commit
+    ghLog('Creating commit…');
+    const msg = createRelease
+      ? `feat: ${relName || tag}\n\n${notes || 'Dashboard update'}`
+      : `chore: dashboard update — ${new Date().toISOString().slice(0,10)}`;
+    const commit = await ghFetch('POST', `/repos/${GH_USER}/${GH_REPO}/git/commits`, {
+      message: msg,
+      tree:    tree.sha,
+      parents: [headSha],
+    });
+    ghLog(`Commit: ${commit.sha.slice(0,8)}`, 'var(--green)');
+
+    // 6. Update branch ref
+    await ghFetch('PATCH', `/repos/${GH_USER}/${GH_REPO}/git/refs/heads/${GH_BRANCH}`, {
+      sha: commit.sha,
+      force: false,
+    });
+    ghLog(`✓ ${GH_BRANCH} branch updated`, 'var(--green)');
+
+    if (createRelease) {
+      // 7. Create tag ref
+      ghLog(`Creating tag ${tag}…`);
+      await ghFetch('POST', `/repos/${GH_USER}/${GH_REPO}/git/refs`, {
+        ref: `refs/tags/${tag}`,
+        sha: commit.sha,
+      });
+
+      // 8. Create GitHub Release
+      ghLog('Creating GitHub Release…');
+      const releaseBody =
+        `## ${relName || tag}\n\n${notes || ''}\n\n` +
+        `**Commit:** \`${commit.sha.slice(0,8)}\`  \n` +
+        `**Pushed:** ${new Date().toLocaleString()}`;
+      const release = await ghFetch('POST', `/repos/${GH_USER}/${GH_REPO}/releases`, {
+        tag_name:   tag,
+        name:       relName || tag,
+        body:       releaseBody,
+        draft:      false,
+        prerelease: false,
+      });
+      ghLog(`\n🎉 Release live: ${release.html_url}`, 'var(--green)');
+      document.getElementById('gh-current-version').textContent = tag;
+
+      // Auto-bump next version
+      const next = tag.replace(/(\d+)$/, n => parseInt(n)+1);
+      document.getElementById('gh-release-tag').value  = next;
+      document.getElementById('gh-release-name').value = `YouTube Helper ${next}`;
+      document.getElementById('gh-release-notes').value = '';
+
+      status.textContent = `✓ Released ${tag}`;
+      status.style.color = 'var(--green)';
+
+      // Show clickable link
+      ghLog(`\nRepo    : https://github.com/${GH_USER}/${GH_REPO}`);
+      ghLog(`Release : ${release.html_url}`, 'var(--blue)');
+    } else {
+      ghLog(`\n✓ Files pushed — no release tag created.`, 'var(--green)');
+      status.textContent = '✓ Files pushed';
+      status.style.color = 'var(--green)';
+    }
+
+  } catch(e) {
+    ghLog(`\n✗ Error: ${e.message}`, 'var(--accent)');
+    status.textContent = '✗ Push failed';
+    status.style.color = 'var(--accent)';
+  } finally {
+    pushBtn.disabled  = false;
+    filesBtn.disabled = false;
+    document.getElementById('gh-push-icon').textContent = '🚀';
+  }
 }
 </script>
 </body>
