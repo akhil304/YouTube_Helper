@@ -4,65 +4,61 @@ An intelligent personal AI agent that learns your YouTube taste, tracks your his
 
 ---
 
+## 🔗 Live App
+
+**https://akhil304.github.io/YouTube_Helper/**
+
+---
+
 ## Features
 
 | Feature | Description |
 |---|---|
-| **YouTube OAuth2 Connect** | Full Google OAuth2 flow — pulls liked videos, playlists, subscriptions |
-| **History Tracking** | Every watched/liked video stored locally with metadata |
+| **YouTube OAuth2 Connect** | Full Google OAuth2 — pulls liked videos, playlists, subscriptions |
+| **Playlist Manager** | Accordion view of all playlists, drag & drop reorder, add/remove videos |
+| **Two-Way Sync** | Pull from YouTube + Push changes back via API |
+| **History Tracking** | Sync liked videos, subscriptions, playlist content |
 | **AI Auto-Tagging** | Claude infers genre, mood, topic tags for every video |
-| **Tag Editor** | Edit tags on any video manually via the dashboard |
+| **Tag Editor** | Edit tags on any video manually |
 | **Sections** | Music · Entertainment · Podcasts · Workout |
-| **Time-of-Day Recs** | Morning workout, midday focus, evening wind-down |
-| **Mood Engine** | 6 moods (Happy, Focused, Chill, Energised, Workout, Tired) boost relevant content |
-| **Usage Monitor** | Daily/weekly watch time by category |
-| **Taste Fingerprint** | Weighted profile of your content DNA |
-| **AI Chat** | Natural language Q&A about your history and preferences |
-| **GitHub Sync** | Push all data/code to your repo automatically |
+| **Mood Engine** | 6 moods × time-of-day recommendation scoring |
+| **Usage Monitor** | Daily/weekly watch time by category with goal tracking |
+| **Taste Fingerprint** | Your content DNA from tag & category analysis |
+| **AI Chat** | Claude-powered Q&A with your full watch history as context |
+| **Mobile Responsive** | Bottom nav bar, slide-in sidebar, touch-friendly |
+| **Google Takeout Import** | Import full watch history from all devices |
+| **GitHub Release Button** | Push new releases from inside the dashboard Settings |
 
 ---
 
 ## Quick Start
 
-### 1. Install dependencies
-```bash
-pip install -r requirements_yt.txt
-```
+1. Open **https://akhil304.github.io/YouTube_Helper/**
+2. Go to **Settings → YouTube Connection**
+3. Paste your Google OAuth2 Client ID → click **Save**
+4. Click **Connect YouTube** in the sidebar → sign in with Google
+5. Go to **History → Sync History** to pull your videos
+6. Go to **Playlists → Pull from YouTube** to sync all playlists
 
-### 2. Set environment variables (Windows)
-```bat
-set ANTHROPIC_API_KEY=sk-ant-...
-set YT_CLIENT_ID=...apps.googleusercontent.com
-set YT_CLIENT_SECRET=...
-set GITHUB_TOKEN=ghp_...
-```
+---
 
-### 3. Get Google OAuth2 Credentials
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a project → APIs & Services → Enable **YouTube Data API v3**
-3. Create **OAuth 2.0 Client ID** (Desktop app)
-4. Copy Client ID and Secret → paste into Settings in the dashboard
+## Google OAuth2 Setup
 
-### 4. Open the Dashboard
-Open `ui/index.html` in your browser (works offline, no server needed).
-
-### 5. Run the CLI Agent (optional)
-```bash
-python -m agents.youtube_helper_agent
-```
-
-### 6. Push to GitHub
-```bash
-set GITHUB_TOKEN=ghp_...
-python core/github_sync.py
-```
+1. Go to [console.cloud.google.com](https://console.cloud.google.com)
+2. Create project → Enable **YouTube Data API v3**
+3. Create **OAuth 2.0 Client ID** (Web application)
+4. Set:
+   - **Authorised JavaScript origins:** `https://akhil304.github.io`
+   - **Authorised redirect URIs:** `https://akhil304.github.io/YouTube_Helper/`
+5. Add your Gmail as a test user under **Audience → Test Users**
 
 ---
 
 ## Architecture
 
 ```
-youtube_helper/
+YouTube_Helper/
+├── index.html                  ← Root (served by GitHub Pages)
 ├── ui/
 │   └── index.html              ← Single-file dashboard (dark theme)
 ├── agents/
@@ -76,8 +72,7 @@ youtube_helper/
 │   ├── usage_tracker.py        ← Watch time logging
 │   └── github_sync.py          ← Incremental GitHub push
 ├── storage/                    ← Local data (gitignored)
-├── requirements_yt.txt
-└── .env.example
+└── requirements_yt.txt
 ```
 
 ---
@@ -97,6 +92,10 @@ youtube_helper/
 
 ## GitHub Pages
 
-Enable at: **Settings → Pages → Branch: main / folder: /ui**
+Live URL: **https://akhil304.github.io/YouTube_Helper/**
 
-Live URL: `https://akhil304.github.io/Personal-Entertainment-Guide/ui/`
+Served from: `main` branch / root `/`
+
+## Releases
+
+All releases: **https://github.com/akhil304/YouTube_Helper/releases**
