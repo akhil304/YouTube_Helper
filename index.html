@@ -1057,8 +1057,10 @@ window.onload = () => {
   loadDemoData();
   renderFingerprint();
   renderRecommendations();
+  // Restore token from storage on page load
+  const storedToken = localStorage.getItem('yt_access_token');
+  if (storedToken) { STATE.ytToken = storedToken; simulateConnect(); }
   renderPlaylistSelector();
-  renderWatchlist();
 };
 
 function loadDemoData() {
@@ -1309,51 +1311,45 @@ function closeTagModal() { document.getElementById('tag-modal').classList.remove
 // YOUTUBE CONNECT (OAuth2 stub)
 // ══════════════════════════════════
 function toggleConnect() {
-  // Read from input OR localStorage
   const inputCid = document.getElementById('setting-client-id')?.value.trim();
   const clientId = inputCid || localStorage.getItem('yt_client_id') || '';
-  if (!STATE.connected) {
-    if (!clientId) {
-      alert('Enter your Google OAuth2 Client ID in Settings → YouTube Connection first, then Save, then Connect.');
-      showPage('settings', null); return;
-    }
-    // Build exact redirect URI matching Google Cloud Console
-    // Force the correct GitHub Pages URL — never use iframe/srcdoc origin
-    const GITHUB_PAGES_URL = 'https://akhil304.github.io/YouTube_Helper/';
-    const rawOrigin = window.location.origin;
-    const isRealPage = rawOrigin && rawOrigin !== 'null' && !rawOrigin.includes('srcdoc');
-    const redirectUri = encodeURIComponent(isRealPage
-      ? (window.location.origin + window.location.pathname).replace(/\/+$/, '/') + ''
-      : GITHUB_PAGES_URL);
-    if (!isRealPage) {
-      alert('Please open the dashboard from:\n\nhttps://akhil304.github.io/YouTube_Helper/\n\nYou cannot connect YouTube from inside a preview frame.');
-      btn.disabled = false; return;
-    }
-    const scope = encodeURIComponent([
-      'https://www.googleapis.com/auth/youtube.readonly',
-      'https://www.googleapis.com/auth/youtube'
-    ].join(' '));
-    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}&prompt=consent`;
-    console.log('OAuth URL:', url);
-    console.log('Redirect URI:', decodeURIComponent(redirectUri));
-    window.open(url, '_blank', 'width=500,height=600');
-    // Listen for token in URL (implicit flow callback)
-    const poll = setInterval(() => {
-      try {
-        const hash = window._oauthToken;
-        if (hash) { clearInterval(poll); handleOAuthToken(hash); }
-      } catch(e) {}
-    }, 500);
-    setTimeout(() => clearInterval(poll), 120000);
-  } else {
+
+  if (STATE.connected) {
+    // Disconnect
     STATE.connected = false;
+    STATE.ytToken   = null;
+    localStorage.removeItem('yt_access_token');
     document.getElementById('yt-connect-btn').className = 'connect-btn';
     document.getElementById('yt-connect-btn').innerHTML = '<span>▶</span> Connect YouTube';
     document.getElementById('settings-connect-btn').textContent = 'Connect';
     document.getElementById('yt-account-desc').textContent = 'Not connected';
     document.getElementById('step3-status').textContent = 'Pending';
     document.getElementById('step3-status').className = 'step-status step-pending';
+    return;
   }
+
+  if (!clientId) {
+    alert('Paste your Google OAuth2 Client ID in Settings → YouTube Connection → Save, then try again.');
+    showPage('settings', null); return;
+  }
+
+  // Always use the hardcoded GitHub Pages URL as redirect URI
+  const redirectUri = 'https://akhil304.github.io/YouTube_Helper/';
+  const scope = [
+    'https://www.googleapis.com/auth/youtube.readonly',
+    'https://www.googleapis.com/auth/youtube',
+  ].join(' ');
+
+  const authURL = 'https://accounts.google.com/o/oauth2/v2/auth' +
+    '?client_id='     + encodeURIComponent(clientId) +
+    '&redirect_uri='  + encodeURIComponent(redirectUri) +
+    '&response_type=token' +
+    '&scope='         + encodeURIComponent(scope) +
+    '&prompt=consent' +
+    '&include_granted_scopes=true';
+
+  // Redirect THIS tab — token comes back in the URL hash
+  window.location.href = authURL;
 }
 function simulateConnect() {
   STATE.connected = true;
@@ -2020,7 +2016,7 @@ function clearTakeout() {
 // ══════════════════════════════════
 // OAUTH TOKEN HANDLER
 // ══════════════════════════════════
-// Handle implicit flow token returned in URL hash
+// Handle implicit flow token returned in URL hash after OAuth redirect
 (function() {
   const hash = window.location.hash;
   if (hash && hash.includes('access_token')) {
@@ -2028,10 +2024,15 @@ function clearTakeout() {
     const token  = params.get('access_token');
     if (token) {
       localStorage.setItem('yt_access_token', token);
-      window.location.hash = '';
-      simulateConnect();
       STATE.ytToken = token;
-      wlLog('✓ YouTube connected via OAuth token', 'var(--green)');
+      // Clean URL without reloading
+      history.replaceState(null, '', window.location.pathname);
+      // Mark connected
+      simulateConnect();
+      // Show success message
+      setTimeout(() => {
+        alert('✅ YouTube connected! Click "Sync History" on the History page or "Pull from YouTube" on the Playlists page to load your content.');
+      }, 300);
     }
   }
 })();
@@ -2217,8 +2218,9 @@ function renderAllPlaylists() {
   const search = (document.getElementById('wl-search')?.value||'').toLowerCase();
   const pls    = Object.values(STATE.playlists);
 
+  if (!acc) return;
   if (!pls.length) {
-    acc.innerHTML = '<div class="empty"><div class="empty-icon">🎵</div><div class="empty-title">No playlists yet</div><div class="empty-desc">Click "Pull from YouTube" to sync.</div></div>';
+    acc.innerHTML = '<div class="empty"><div class="empty-icon">🎵</div><div class="empty-title">No playlists yet</div><div class="empty-desc">Connect YouTube then click "Pull from YouTube" to sync your playlists.</div></div>';
     return;
   }
 
@@ -2592,9 +2594,9 @@ function saveWatchlist() { savePLState(); }
 
 // ── INIT ──────────────────────────────────────────────────────────────────
 function renderPlaylistSelector() {
-  renderAllPlaylists();
-  populateAddModal();
-  updatePendingBadge();
+  try { renderAllPlaylists(); } catch(e) { console.warn('renderAllPlaylists:', e); }
+  try { populateAddModal();   } catch(e) { console.warn('populateAddModal:', e); }
+  try { updatePendingBadge(); } catch(e) {}
 }
 // Init watchlist count on load
 document.addEventListener('DOMContentLoaded', () => {
