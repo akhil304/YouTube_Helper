@@ -1032,7 +1032,7 @@ const STATE = {
   mood: '😊 Happy',
   currentMoodEdit: null,
   videos: [],       // { id, title, channel, category, tags, watchedAt, duration }
-  playlists: [],
+  playlists: {},
   usage: { today: 0, weekly: 0, music: 0, entertainment: 0, podcast: 0, workout: 0 },
   fingerprint: {},
   settings: {},
@@ -1064,7 +1064,8 @@ window.onload = () => {
   // Restore token from storage on page load
   const storedToken = localStorage.getItem('yt_access_token');
   if (storedToken) { STATE.ytToken = storedToken; simulateConnect(); }
-  renderPlaylistSelector();
+  // Defer playlist render to avoid blocking initial page load
+  setTimeout(() => { try { renderPlaylistSelector(); } catch(e) { console.warn(e); } }, 100);
 };
 
 function loadDemoData() {
@@ -1137,7 +1138,7 @@ function setMood(btn, mood) {
 // ══════════════════════════════════
 function updateStats() {
   document.getElementById('hero-videos').textContent   = STATE.videos.length;
-  document.getElementById('hero-playlists').textContent = STATE.playlists.length || '—';
+  document.getElementById('hero-playlists').textContent = Object.keys(STATE.playlists||{}).length || '—';
   const mins = STATE.usage.today;
   document.getElementById('stat-today').textContent = `${Math.floor(mins/60)}h ${mins%60}m`;
   const cats = ['music','entertainment','podcast','workout'];
@@ -2064,16 +2065,19 @@ async function ytAPI(endpoint, params = {}) {
 // PLAYLIST ENGINE — accordion + drag-and-drop + two-way sync
 // ══════════════════════════════════
 
-// ── STATE ─────────────────────────────────────────────────────────────────
-STATE.playlists    = JSON.parse(localStorage.getItem('yt_pl_data')   || '{}'); // {plId: {meta, items:[]}}
-STATE.pendingMoves = {};   // {plId: [{itemId, newPosition}]}
-STATE.pendingAdds  = [];   // {plId, videoId, title}
-STATE.pendingRemoves = []; // {plId, playlistItemId, videoId}
+// ── PLAYLIST STATE (extends global STATE) ────────────────────────────────
+// Load persisted playlists from localStorage
+STATE.playlists     = JSON.parse(localStorage.getItem('yt_pl_data')  || '{}');
+STATE.pendingMoves  = {};
+STATE.pendingAdds   = [];
+STATE.pendingRemoves= [];
 STATE.openPlaylists = new Set(JSON.parse(localStorage.getItem('yt_open_pls') || '[]'));
 
 function savePLState() {
-  localStorage.setItem('yt_pl_data', JSON.stringify(STATE.playlists));
-  localStorage.setItem('yt_open_pls', JSON.stringify([...STATE.openPlaylists]));
+  try {
+    localStorage.setItem('yt_pl_data', JSON.stringify(STATE.playlists));
+    localStorage.setItem('yt_open_pls', JSON.stringify([...STATE.openPlaylists]));
+  } catch(e) { console.warn('savePLState:', e); }
   updatePendingBadge();
 }
 
@@ -2220,7 +2224,7 @@ async function syncWatchlist() {
 function renderAllPlaylists() {
   const acc    = document.getElementById('pl-accordion');
   const search = (document.getElementById('wl-search')?.value||'').toLowerCase();
-  const pls    = Object.values(STATE.playlists);
+  const pls    = Object.values(STATE.playlists || {});
 
   if (!acc) return;
   if (!pls.length) {
@@ -2445,7 +2449,12 @@ function closeWLModal() {
 function populateAddModal() {
   const sel = document.getElementById('wl-add-playlist-sel');
   if (!sel) return;
-  sel.innerHTML = Object.values(STATE.playlists).map(pl =>
+  const pls = Object.values(STATE.playlists || {});
+  if (!pls.length) {
+    sel.innerHTML = '<option value="">Pull from YouTube first</option>';
+    return;
+  }
+  sel.innerHTML = pls.map(pl =>
     `<option value="${pl.meta.id}">${pl.meta.title}</option>`
   ).join('');
 }
@@ -2590,11 +2599,17 @@ async function pushPlaylistChanges(plId) {
   }
 }
 
-// ── FILTER ────────────────────────────────────────────────────────────────
-function filterWLByPlaylist(btn, plId) { STATE.plFilter=plId; renderAllPlaylists(); }
-function filterWL(btn, cat) { STATE.plCatFilter=cat; renderAllPlaylists(); }
-function renderWatchlist() { renderAllPlaylists(); }
-function saveWatchlist() { savePLState(); }
+// ── FILTER + COMPAT ALIASES ──────────────────────────────────────────────
+function filterWLByPlaylist(btn, plId) {
+  STATE.plFilter = plId;
+  try { renderAllPlaylists(); } catch(e) {}
+}
+function filterWL(btn, cat) {
+  STATE.plCatFilter = cat;
+  try { renderAllPlaylists(); } catch(e) {}
+}
+function renderWatchlist() { try { renderAllPlaylists(); } catch(e) {} }
+function saveWatchlist()   { try { savePLState();        } catch(e) {} }
 
 // ── INIT ──────────────────────────────────────────────────────────────────
 function renderPlaylistSelector() {
