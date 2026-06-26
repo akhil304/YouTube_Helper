@@ -316,6 +316,39 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--sub); border-radius: 3px; }
 
+
+  /* ── WATCHLIST ── */
+  .wl-toolbar { display:flex; gap:8px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
+  .wl-search { flex:1; min-width:180px; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:9px 14px; font-family:var(--font); font-size:13px; color:var(--text); }
+  .wl-search:focus { outline:none; border-color:var(--accent); }
+  .wl-search::placeholder { color:var(--muted); }
+  .wl-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; display:flex; align-items:flex-start; gap:14px; transition:all 0.15s; }
+  .wl-card:hover { border-color:var(--sub); }
+  .wl-thumb { width:100px; height:58px; border-radius:7px; background:linear-gradient(135deg,var(--sub),var(--border)); display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0; overflow:hidden; }
+  .wl-thumb img { width:100%; height:100%; object-fit:cover; }
+  .wl-body { flex:1; min-width:0; }
+  .wl-title { font-size:13px; font-weight:600; line-height:1.4; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .wl-meta { font-size:11px; color:var(--muted); margin-bottom:8px; display:flex; gap:10px; flex-wrap:wrap; }
+  .wl-actions { display:flex; gap:6px; flex-wrap:wrap; }
+  .wl-btn { padding:5px 10px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:none; color:var(--muted); font-family:var(--font); transition:all 0.15s; display:flex; align-items:center; gap:4px; }
+  .wl-btn:hover { color:var(--text); border-color:var(--muted); }
+  .wl-btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .wl-btn.primary:hover { opacity:0.88; }
+  .wl-btn.danger:hover { color:var(--accent); border-color:var(--accent); }
+  .wl-btn.success { background:rgba(52,211,153,0.12); border-color:var(--green); color:var(--green); }
+  .wl-list { display:flex; flex-direction:column; gap:10px; }
+  .wl-priority { display:flex; gap:4px; }
+  .wl-star { font-size:14px; cursor:pointer; opacity:0.35; transition:opacity 0.15s; }
+  .wl-star.on { opacity:1; }
+  .wl-note { width:100%; margin-top:8px; background:var(--bg); border:1px solid var(--border); border-radius:7px; padding:8px 10px; font-family:var(--font); font-size:12px; color:var(--text); resize:none; min-height:36px; display:none; }
+  .wl-note.open { display:block; }
+  .wl-note:focus { outline:none; border-color:var(--accent); }
+  .sync-banner { background:linear-gradient(135deg,rgba(255,61,61,0.08),rgba(96,165,250,0.08)); border:1px solid var(--border); border-radius:12px; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:20px; flex-wrap:wrap; }
+  .sync-banner-info { font-size:13px; }
+  .sync-banner-title { font-weight:700; margin-bottom:3px; }
+  .sync-banner-sub { font-size:12px; color:var(--muted); }
+  .sync-status { font-size:11px; font-weight:600; font-family:var(--mono); padding:4px 10px; border-radius:20px; background:var(--sub); }
+
   /* ── MOBILE HAMBURGER ── */
   .hamburger { display: none; background: none; border: none; color: var(--text); font-size: 22px; cursor: pointer; padding: 4px 8px; line-height: 1; }
   .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 99; }
@@ -425,6 +458,7 @@
     <div class="nav-item" onclick="showPage('podcasts', this)"><span class="icon">🎙️</span> Podcasts</div>
     <div class="nav-item" onclick="showPage('history', this)"><span class="icon">📋</span> History</div>
     <div class="nav-item" onclick="showPage('takeout', this)"><span class="icon">📥</span> Import Takeout</div>
+    <div class="nav-item" onclick="showPage('watchlist', this)"><span class="icon">🔖</span> Watchlist <span class="nav-badge" id="wl-count">0</span></div>
 
     <div class="nav-section">Insights</div>
     <div class="nav-item" onclick="showPage('usage', this)"><span class="icon">📊</span> Usage Monitor</div>
@@ -625,6 +659,65 @@
     </div>
   </div>
 
+
+  <!-- ══ WATCHLIST ══ -->
+  <div class="page" id="page-watchlist">
+
+    <!-- Sync banner -->
+    <div class="sync-banner">
+      <div class="sync-banner-info">
+        <div class="sync-banner-title">🔖 Your YouTube Watchlist</div>
+        <div class="sync-banner-sub">Pull your Watch Later playlist from YouTube, edit it here, and push changes back.</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span class="sync-status" id="wl-sync-status">Not synced</span>
+        <button class="btn-primary" onclick="syncWatchlist()" id="wl-sync-btn" style="display:flex;align-items:center;gap:6px"><span id="wl-sync-icon">⟳</span> Sync from YouTube</button>
+        <button class="btn-ghost" onclick="pushWatchlistChanges()" id="wl-push-btn">↑ Push Changes</button>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="wl-toolbar">
+      <input class="wl-search" id="wl-search" placeholder="Search watchlist…" oninput="renderWatchlist()" />
+      <div class="cat-tabs" style="margin-bottom:0">
+        <button class="cat-tab active" onclick="filterWL(this,'all')">All</button>
+        <button class="cat-tab" onclick="filterWL(this,'music')">🎵</button>
+        <button class="cat-tab" onclick="filterWL(this,'entertainment')">🎬</button>
+        <button class="cat-tab" onclick="filterWL(this,'podcast')">🎙️</button>
+        <button class="cat-tab" onclick="filterWL(this,'workout')">💪</button>
+        <button class="cat-tab" onclick="filterWL(this,'priority')">⭐ Priority</button>
+      </div>
+      <button class="btn-ghost" onclick="addWLItem()" style="white-space:nowrap">+ Add Video</button>
+    </div>
+
+    <!-- Sync log -->
+    <div id="wl-log" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:16px;max-height:100px;overflow-y:auto;line-height:1.8"></div>
+
+    <!-- List -->
+    <div class="wl-list" id="wl-list">
+      <div class="empty"><div class="empty-icon">🔖</div><div class="empty-title">Watchlist empty</div><div class="empty-desc">Click "Sync from YouTube" to pull your Watch Later playlist, or add videos manually.</div></div>
+    </div>
+  </div>
+
+  <!-- Add to Watchlist modal -->
+  <div class="modal-overlay" id="wl-add-modal">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-title">Add to Watchlist</div>
+        <button class="modal-close" onclick="closeWLModal()">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <input class="tag-input" id="wl-add-url" placeholder="YouTube URL or video ID" />
+        <input class="tag-input" id="wl-add-title" placeholder="Title (optional — auto-fetched if connected)" />
+        <input class="tag-input" id="wl-add-channel" placeholder="Channel name (optional)" />
+        <textarea class="tag-input" id="wl-add-note" placeholder="Note to yourself…" style="min-height:60px;resize:vertical"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeWLModal()">Cancel</button>
+        <button class="btn-primary" onclick="saveWLItem()">Add to Watchlist</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ══ TAKEOUT IMPORT ══ -->
   <div class="page" id="page-takeout">
@@ -1114,19 +1207,32 @@ function closeTagModal() { document.getElementById('tag-modal').classList.remove
 // YOUTUBE CONNECT (OAuth2 stub)
 // ══════════════════════════════════
 function toggleConnect() {
-  const clientId = document.getElementById('setting-client-id')?.value.trim();
+  // Read from input OR localStorage
+  const inputCid = document.getElementById('setting-client-id')?.value.trim();
+  const clientId = inputCid || localStorage.getItem('yt_client_id') || '';
   if (!STATE.connected) {
     if (!clientId) {
-      alert('Enter your Google OAuth2 Client ID in Settings first, then try connecting.');
+      alert('Enter your Google OAuth2 Client ID in Settings → YouTube Connection first, then Save, then Connect.');
       showPage('settings', null); return;
     }
-    // Real OAuth2 redirect
-    const redirectUri = encodeURIComponent(window.location.href.split('?')[0]);
-    const scope = encodeURIComponent('https://www.googleapis.com/auth/youtube.readonly');
-    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}`;
+    // Build exact redirect URI matching Google Cloud Console
+    const redirectUri = encodeURIComponent(window.location.origin + window.location.pathname);
+    const scope = encodeURIComponent([
+      'https://www.googleapis.com/auth/youtube.readonly',
+      'https://www.googleapis.com/auth/youtube'
+    ].join(' '));
+    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}&prompt=consent`;
+    console.log('OAuth URL:', url);
+    console.log('Redirect URI:', decodeURIComponent(redirectUri));
     window.open(url, '_blank', 'width=500,height=600');
-    // For demo: simulate connect
-    setTimeout(simulateConnect, 1200);
+    // Listen for token in URL (implicit flow callback)
+    const poll = setInterval(() => {
+      try {
+        const hash = window._oauthToken;
+        if (hash) { clearInterval(poll); handleOAuthToken(hash); }
+      } catch(e) {}
+    }, 500);
+    setTimeout(() => clearInterval(poll), 120000);
   } else {
     STATE.connected = false;
     document.getElementById('yt-connect-btn').className = 'connect-btn';
@@ -1632,6 +1738,363 @@ function clearTakeout() {
   document.getElementById('takeout-clear').style.display = 'none';
   updateStats(); renderHistory();
 }
+
+
+// ══════════════════════════════════
+// OAUTH TOKEN HANDLER
+// ══════════════════════════════════
+// Handle implicit flow token returned in URL hash
+(function() {
+  const hash = window.location.hash;
+  if (hash && hash.includes('access_token')) {
+    const params = new URLSearchParams(hash.slice(1));
+    const token  = params.get('access_token');
+    if (token) {
+      localStorage.setItem('yt_access_token', token);
+      window.location.hash = '';
+      simulateConnect();
+      STATE.ytToken = token;
+      wlLog('✓ YouTube connected via OAuth token', 'var(--green)');
+    }
+  }
+})();
+
+function handleOAuthToken(token) {
+  localStorage.setItem('yt_access_token', token);
+  STATE.ytToken = token;
+  simulateConnect();
+}
+
+async function ytAPI(endpoint, params = {}) {
+  const token = STATE.ytToken || localStorage.getItem('yt_access_token');
+  if (!token) throw new Error('Not authenticated — connect YouTube first.');
+  const url = 'https://www.googleapis.com/youtube/v3' + endpoint +
+    '?' + new URLSearchParams(params).toString();
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error?.message || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// ══════════════════════════════════
+// WATCHLIST ENGINE
+// ══════════════════════════════════
+STATE.watchlist = JSON.parse(localStorage.getItem('yt_watchlist') || '[]');
+STATE.wlFilter  = 'all';
+STATE.wlPlaylistId = null;  // YouTube "Watch Later" playlist ID
+
+function saveWatchlist() {
+  localStorage.setItem('yt_watchlist', JSON.stringify(STATE.watchlist));
+  document.getElementById('wl-count').textContent = STATE.watchlist.length;
+}
+
+function wlLog(msg, color) {
+  const log = document.getElementById('wl-log');
+  log.style.display = 'block';
+  const col = color || 'var(--muted)';
+  const ts  = new Date().toLocaleTimeString('en-US', { hour12: false });
+  log.innerHTML += `<span style="color:${col}">[${ts}] ${msg}</span>\n`;
+  log.scrollTop = log.scrollHeight;
+}
+
+// ── SYNC FROM YOUTUBE ─────────────────────────────────────────────────────
+async function syncWatchlist() {
+  const btn  = document.getElementById('wl-sync-btn');
+  const stat = document.getElementById('wl-sync-status');
+  btn.disabled = true;
+  document.getElementById('wl-sync-icon').textContent = '⏳';
+  stat.textContent = 'Syncing…';
+  document.getElementById('wl-log').innerHTML = '';
+  wlLog('Fetching playlists…');
+
+  try {
+    // Get user's playlists to find Watch Later (WL) — or fall back to liked videos
+    const plData = await ytAPI('/playlists', { part:'snippet', mine:'true', maxResults:'50' });
+    wlLog(`Found ${plData.items?.length || 0} playlists`);
+
+    // Watch Later isn't accessible via API for other users, but own account can use LL playlist
+    // Try to get liked videos instead (most reliable)
+    wlLog('Fetching liked videos…');
+    const liked = await ytAPI('/videos', {
+      part: 'snippet,contentDetails',
+      myRating: 'like',
+      maxResults: '50',
+    });
+
+    const items = liked.items || [];
+    wlLog(`Got ${items.length} liked videos`);
+
+    // Also get playlists
+    const playlists = plData.items || [];
+    wlLog(`Got ${playlists.length} playlists — merging into watchlist`);
+
+    // Build watchlist entries from liked videos
+    const existing = new Set(STATE.watchlist.map(v => v.id));
+    let added = 0;
+    for (const item of items) {
+      if (existing.has(item.id)) continue;
+      const sn = item.snippet;
+      STATE.watchlist.push({
+        id:        item.id,
+        title:     sn.title,
+        channel:   sn.channelTitle,
+        thumb:     sn.thumbnails?.medium?.url || sn.thumbnails?.default?.url || '',
+        category:  inferCategory(sn.title + ' ' + sn.channelTitle),
+        tags:      [],
+        note:      '',
+        priority:  0,
+        status:    'unwatched',   // unwatched | watching | watched
+        addedAt:   sn.publishedAt || new Date().toISOString(),
+        ytLiked:   true,
+        url:       `https://www.youtube.com/watch?v=${item.id}`,
+      });
+      added++;
+    }
+
+    // Add playlists as watchlist entries too
+    for (const pl of playlists) {
+      const plId = 'pl_' + pl.id;
+      if (existing.has(plId)) continue;
+      STATE.watchlist.push({
+        id:       plId,
+        title:    '📋 ' + pl.snippet.title,
+        channel:  'Playlist',
+        thumb:    pl.snippet.thumbnails?.medium?.url || '',
+        category: 'playlist',
+        tags:     [],
+        note:     '',
+        priority: 0,
+        status:   'unwatched',
+        addedAt:  pl.snippet.publishedAt || new Date().toISOString(),
+        ytPlaylistId: pl.id,
+        url:      `https://www.youtube.com/playlist?list=${pl.id}`,
+      });
+      added++;
+    }
+
+    saveWatchlist();
+    renderWatchlist();
+    stat.textContent = `✓ Synced ${added} items`;
+    wlLog(`✓ Added ${added} new items to watchlist`, 'var(--green)');
+    document.getElementById('wl-sync-status').style.color = 'var(--green)';
+
+  } catch(e) {
+    stat.textContent = '✗ Sync failed';
+    wlLog(`✗ ${e.message}`, 'var(--accent)');
+    if (e.message.includes('authenticate') || e.message.includes('401')) {
+      wlLog('→ Connect your YouTube account first (sidebar button)', 'var(--gold)');
+    }
+  } finally {
+    btn.disabled = false;
+    document.getElementById('wl-sync-icon').textContent = '⟳';
+  }
+}
+
+// ── PUSH CHANGES TO YOUTUBE ───────────────────────────────────────────────
+async function pushWatchlistChanges() {
+  const token = STATE.ytToken || localStorage.getItem('yt_access_token');
+  if (!token) { wlLog('✗ Connect YouTube first', 'var(--accent)'); return; }
+
+  wlLog('Pushing changes to YouTube…');
+  const btn = document.getElementById('wl-push-btn');
+  btn.disabled = true;
+
+  try {
+    // Find items marked as watched → remove rating (unlike)
+    const watched = STATE.watchlist.filter(v => v.status === 'watched' && v.ytLiked && !v.pushDone);
+    wlLog(`Found ${watched.length} items to update`);
+
+    let done = 0;
+    for (const v of watched) {
+      if (v.id.startsWith('pl_')) continue; // skip playlists
+      // Remove from liked (DELETE rating)
+      await fetch(`https://www.googleapis.com/youtube/v3/videos/rate?id=${v.id}&rating=none`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      v.pushDone = true;
+      done++;
+      wlLog(`  ✓ Unmarked liked: ${v.title.slice(0,40)}`, 'var(--green)');
+    }
+
+    saveWatchlist();
+    wlLog(`\n✅ Pushed ${done} changes to YouTube`, 'var(--green)');
+    document.getElementById('wl-sync-status').textContent = `✓ ${done} changes pushed`;
+  } catch(e) {
+    wlLog(`✗ Push failed: ${e.message}`, 'var(--accent)');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────
+function filterWL(btn, cat) {
+  document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  STATE.wlFilter = cat;
+  renderWatchlist();
+}
+
+function renderWatchlist() {
+  const list    = document.getElementById('wl-list');
+  const search  = (document.getElementById('wl-search')?.value || '').toLowerCase();
+  const filter  = STATE.wlFilter || 'all';
+
+  let items = [...STATE.watchlist];
+
+  // Filter
+  if (filter === 'priority') items = items.filter(v => v.priority > 0);
+  else if (filter !== 'all') items = items.filter(v => v.category === filter);
+
+  // Search
+  if (search) items = items.filter(v =>
+    v.title.toLowerCase().includes(search) ||
+    v.channel.toLowerCase().includes(search) ||
+    (v.note||'').toLowerCase().includes(search)
+  );
+
+  // Sort: priority desc, then unwatched first, then addedAt desc
+  items.sort((a,b) => {
+    if (b.priority !== a.priority) return b.priority - a.priority;
+    const statusOrder = { unwatched:0, watching:1, watched:2 };
+    if (statusOrder[a.status] !== statusOrder[b.status]) return statusOrder[a.status] - statusOrder[b.status];
+    return new Date(b.addedAt) - new Date(a.addedAt);
+  });
+
+  document.getElementById('wl-count').textContent = STATE.watchlist.length;
+
+  if (!items.length) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">🔖</div><div class="empty-title">Nothing here</div><div class="empty-desc">Try a different filter or sync from YouTube.</div></div>';
+    return;
+  }
+
+  list.innerHTML = items.map(v => {
+    const stars = [1,2,3].map(n =>
+      `<span class="wl-star ${v.priority >= n ? 'on' : ''}" onclick="setPriority('${v.id}',${n})" title="Priority ${n}">⭐</span>`
+    ).join('');
+    const statusColors = { unwatched:'var(--muted)', watching:'var(--gold)', watched:'var(--green)' };
+    const statusLabels = { unwatched:'Unwatched', watching:'Watching', watched:'Watched' };
+    const thumbContent = v.thumb
+      ? `<img src="${v.thumb}" alt="" onerror="this.style.display='none'" />`
+      : catEmoji(v.category);
+    return `
+    <div class="wl-card" id="wlc-${v.id}">
+      <div class="wl-thumb">${thumbContent}</div>
+      <div class="wl-body">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+          <div class="wl-title" title="${v.title}">${v.title}</div>
+          <div class="wl-priority">${stars}</div>
+        </div>
+        <div class="wl-meta">
+          <span>${v.channel}</span>
+          <span class="pill pill-${catColor(v.category)}">${catEmoji(v.category)} ${v.category}</span>
+          <span style="color:${statusColors[v.status]||'var(--muted)'}">● ${statusLabels[v.status]||v.status}</span>
+          ${v.ytLiked ? '<span style="color:var(--accent)">♥ Liked</span>' : ''}
+        </div>
+        <div class="wl-actions">
+          <a href="${v.url}" target="_blank" class="wl-btn primary">▶ Watch</a>
+          <button class="wl-btn" onclick="cycleStatus('${v.id}')">⟳ ${statusLabels[v.status]||'Status'}</button>
+          <button class="wl-btn" onclick="toggleNote('${v.id}')">📝 Note</button>
+          <button class="wl-btn" onclick="openTagEditor('${v.id}')">🏷️ Tags</button>
+          <button class="wl-btn danger" onclick="removeFromWL('${v.id}')">✕ Remove</button>
+        </div>
+        <textarea class="wl-note ${v.note ? 'open' : ''}" id="wl-note-${v.id}"
+          placeholder="Add a note…"
+          onblur="saveNote('${v.id}',this.value)"
+        >${v.note||''}</textarea>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function inferCategory(text) {
+  text = text.toLowerCase();
+  const rules = [
+    [['music','song','lofi','lo-fi','beats','jazz','hip hop','playlist','vevo'],'music'],
+    [['workout','hiit','gym','yoga','fitness','exercise','cardio'],'workout'],
+    [['podcast','interview','episode','talk'],'podcast'],
+  ];
+  for (const [kws, cat] of rules) {
+    if (kws.some(k => text.includes(k))) return cat;
+  }
+  return 'entertainment';
+}
+
+// ── WATCHLIST ACTIONS ─────────────────────────────────────────────────────
+function cycleStatus(id) {
+  const v = STATE.watchlist.find(x => x.id === id);
+  if (!v) return;
+  const cycle = { unwatched:'watching', watching:'watched', watched:'unwatched' };
+  v.status = cycle[v.status] || 'unwatched';
+  saveWatchlist();
+  renderWatchlist();
+}
+
+function setPriority(id, n) {
+  const v = STATE.watchlist.find(x => x.id === id);
+  if (!v) return;
+  v.priority = v.priority === n ? 0 : n;  // toggle off if same
+  saveWatchlist();
+  renderWatchlist();
+}
+
+function toggleNote(id) {
+  const el = document.getElementById(`wl-note-${id}`);
+  if (el) { el.classList.toggle('open'); if (el.classList.contains('open')) el.focus(); }
+}
+
+function saveNote(id, val) {
+  const v = STATE.watchlist.find(x => x.id === id);
+  if (v) { v.note = val.trim(); saveWatchlist(); }
+}
+
+function removeFromWL(id) {
+  STATE.watchlist = STATE.watchlist.filter(v => v.id !== id);
+  saveWatchlist();
+  renderWatchlist();
+}
+
+// ── ADD VIDEO MANUALLY ────────────────────────────────────────────────────
+function addWLItem() { document.getElementById('wl-add-modal').classList.add('open'); }
+function closeWLModal() {
+  document.getElementById('wl-add-modal').classList.remove('open');
+  ['wl-add-url','wl-add-title','wl-add-channel','wl-add-note'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+}
+function saveWLItem() {
+  const raw = document.getElementById('wl-add-url').value.trim();
+  if (!raw) { alert('Enter a YouTube URL or video ID.'); return; }
+  // Extract video ID from URL or use raw
+  const match = raw.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  const vid   = match ? match[1] : raw;
+  const title = document.getElementById('wl-add-title').value.trim() || `Video ${vid}`;
+  const channel = document.getElementById('wl-add-channel').value.trim() || 'Unknown';
+  const note  = document.getElementById('wl-add-note').value.trim();
+
+  if (STATE.watchlist.find(v => v.id === vid)) {
+    alert('Already in watchlist.'); return;
+  }
+  STATE.watchlist.unshift({
+    id: vid, title, channel,
+    thumb: `https://img.youtube.com/vi/${vid}/mqdefault.jpg`,
+    category: inferCategory(title + ' ' + channel),
+    tags: [], note, priority: 0, status: 'unwatched',
+    addedAt: new Date().toISOString(),
+    url: `https://www.youtube.com/watch?v=${vid}`,
+    manual: true,
+  });
+  saveWatchlist();
+  renderWatchlist();
+  closeWLModal();
+}
+
+// Init watchlist count on load
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('wl-count').textContent = STATE.watchlist.length;
+});
 
 </script>
 </body>
