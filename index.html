@@ -1216,7 +1216,17 @@ function toggleConnect() {
       showPage('settings', null); return;
     }
     // Build exact redirect URI matching Google Cloud Console
-    const redirectUri = encodeURIComponent(window.location.origin + window.location.pathname);
+    // Force the correct GitHub Pages URL — never use iframe/srcdoc origin
+    const GITHUB_PAGES_URL = 'https://akhil304.github.io/YouTube_Helper/';
+    const rawOrigin = window.location.origin;
+    const isRealPage = rawOrigin && rawOrigin !== 'null' && !rawOrigin.includes('srcdoc');
+    const redirectUri = encodeURIComponent(isRealPage
+      ? (window.location.origin + window.location.pathname).replace(/\/+$/, '/') + ''
+      : GITHUB_PAGES_URL);
+    if (!isRealPage) {
+      alert('Please open the dashboard from:\n\nhttps://akhil304.github.io/YouTube_Helper/\n\nYou cannot connect YouTube from inside a preview frame.');
+      btn.disabled = false; return;
+    }
     const scope = encodeURIComponent([
       'https://www.googleapis.com/auth/youtube.readonly',
       'https://www.googleapis.com/auth/youtube'
