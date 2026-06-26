@@ -550,7 +550,7 @@
 
   <!-- ══ MUSIC ══ -->
   <div class="page" id="page-music">
-    <div class="section-head"><div class="section-title">Music Library</div><div class="section-action" onclick="syncPlaylist('music')">⟳ Sync from YouTube</div></div>
+    <div class="section-head"><div class="section-title">Music Library</div><div style="display:flex;gap:8px"><span class="section-action" onclick="syncCategoryFromYT('music')">⟳ Sync YouTube</span><span class="section-action" onclick="exportHistory()" style="color:var(--muted)">⬇ CSV</span></div></div>
     <div class="playlist-table" id="music-table">
       <div class="empty"><div class="empty-icon">🎵</div><div class="empty-title">No music synced yet</div><div class="empty-desc">Connect YouTube to pull your liked music and playlists.</div></div>
     </div>
@@ -558,7 +558,7 @@
 
   <!-- ══ ENTERTAINMENT ══ -->
   <div class="page" id="page-entertainment">
-    <div class="section-head"><div class="section-title">Entertainment</div><div class="section-action" onclick="syncPlaylist('entertainment')">⟳ Sync from YouTube</div></div>
+    <div class="section-head"><div class="section-title">Entertainment</div><div class="section-action" onclick="syncCategoryFromYT('entertainment')">⟳ Sync YouTube</div></div>
     <div class="playlist-table" id="entertainment-table">
       <div class="empty"><div class="empty-icon">🎬</div><div class="empty-title">No entertainment content synced</div><div class="empty-desc">Connect YouTube to pull your watched videos.</div></div>
     </div>
@@ -566,7 +566,7 @@
 
   <!-- ══ PODCASTS ══ -->
   <div class="page" id="page-podcasts">
-    <div class="section-head"><div class="section-title">Podcasts</div><div class="section-action" onclick="syncPlaylist('podcast')">⟳ Sync from YouTube</div></div>
+    <div class="section-head"><div class="section-title">Podcasts</div><div class="section-action" onclick="syncCategoryFromYT('podcast')">⟳ Sync YouTube</div></div>
     <div class="playlist-table" id="podcasts-table">
       <div class="empty"><div class="empty-icon">🎙️</div><div class="empty-title">No podcasts synced</div><div class="empty-desc">Connect YouTube to pull your podcast subscriptions.</div></div>
     </div>
@@ -574,7 +574,39 @@
 
   <!-- ══ HISTORY ══ -->
   <div class="page" id="page-history">
-    <div class="section-head"><div class="section-title">Watch History</div><div class="section-action" onclick="exportHistory()">⬇ Export CSV</div></div>
+
+    <!-- Sync banner -->
+    <div class="sync-banner" style="margin-bottom:16px">
+      <div class="sync-banner-info">
+        <div class="sync-banner-title">📋 Watch History</div>
+        <div class="sync-banner-sub" id="hist-sync-sub">Pull your liked videos, rated videos and activity from YouTube.</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span class="sync-status" id="hist-sync-status">Not synced</span>
+        <button class="btn-primary" onclick="syncHistory()" id="hist-sync-btn" style="display:flex;align-items:center;gap:6px">
+          <span id="hist-sync-icon">⟳</span> Sync History
+        </button>
+        <button class="btn-ghost" onclick="exportHistory()">⬇ CSV</button>
+        <button class="btn-ghost" onclick="clearHistory()" style="color:var(--accent)">✕ Clear</button>
+      </div>
+    </div>
+
+    <!-- Sync log -->
+    <div id="hist-log" style="display:none;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:14px;max-height:90px;overflow-y:auto;line-height:1.8"></div>
+
+    <!-- Search + filter -->
+    <div class="wl-toolbar" style="margin-bottom:14px">
+      <input class="wl-search" id="hist-search" placeholder="Search history…" oninput="renderHistory()" />
+      <div class="cat-tabs" style="margin-bottom:0">
+        <button class="cat-tab active" onclick="filterHistory(this,'all')">All</button>
+        <button class="cat-tab" onclick="filterHistory(this,'music')">🎵</button>
+        <button class="cat-tab" onclick="filterHistory(this,'entertainment')">🎬</button>
+        <button class="cat-tab" onclick="filterHistory(this,'podcast')">🎙️</button>
+        <button class="cat-tab" onclick="filterHistory(this,'workout')">💪</button>
+      </div>
+      <span style="font-size:12px;color:var(--muted)" id="hist-count"></span>
+    </div>
+
     <div class="playlist-table" id="history-table">
       <div class="pt-head">
         <div class="pt-col">#</div>
@@ -585,7 +617,7 @@
         <div class="pt-col"></div>
       </div>
       <div id="history-rows">
-        <div class="empty"><div class="empty-icon">📋</div><div class="empty-title">History empty</div><div class="empty-desc">Connect YouTube to load your watch history.</div></div>
+        <div class="empty"><div class="empty-icon">📋</div><div class="empty-title">History empty</div><div class="empty-desc">Click "Sync History" above to pull from your YouTube account, or import via Google Takeout.</div></div>
       </div>
     </div>
   </div>
@@ -1083,17 +1115,46 @@ function renderUsage() {
 // ══════════════════════════════════
 // HISTORY TABLE
 // ══════════════════════════════════
+let histFilter = 'all';
+function filterHistory(btn, cat) {
+  document.querySelectorAll('#page-history .cat-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  histFilter = cat;
+  renderHistory();
+}
 function renderHistory() {
-  const el = document.getElementById('history-rows');
-  if (!STATE.videos.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">No history</div></div>'; return; }
-  el.innerHTML = STATE.videos.map((v,i) => `
+  const el     = document.getElementById('history-rows');
+  const search = (document.getElementById('hist-search')?.value||'').toLowerCase();
+  let videos   = [...STATE.videos];
+  if (histFilter !== 'all') videos = videos.filter(v => v.category === histFilter);
+  if (search) videos = videos.filter(v =>
+    (v.title||'').toLowerCase().includes(search) ||
+    (v.channel||'').toLowerCase().includes(search) ||
+    (v.tags||[]).some(t => t.includes(search))
+  );
+  const countEl = document.getElementById('hist-count');
+  if (countEl) countEl.textContent = `${videos.length} video${videos.length!==1?'s':''}`;
+  if (!videos.length) {
+    el.innerHTML = STATE.videos.length
+      ? '<div class="empty"><div class="empty-icon">🔍</div><div class="empty-title">No matches</div><div class="empty-desc">Try a different search or filter.</div></div>'
+      : '<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">History empty</div><div class="empty-desc">Click "Sync History" to pull from YouTube, or import via Google Takeout.</div></div>';
+    return;
+  }
+  el.innerHTML = videos.map((v,i) => `
     <div class="pt-row" onclick="openTagEditor('${v.id}')">
       <div class="pt-num">${i+1}</div>
-      <div class="pt-info"><div class="pt-name">${v.title}</div><div class="pt-channel">${v.channel}</div></div>
+      <div class="pt-info">
+        <div class="pt-name">${v.title}</div>
+        <div class="pt-channel">${v.channel}</div>
+      </div>
       <div class="pt-cat"><span class="pill pill-${catColor(v.category)}">${catEmoji(v.category)} ${v.category}</span></div>
       <div class="pt-tags">${(v.tags||[]).slice(0,2).map(t=>`<span class="tag">#${t}</span>`).join('')}</div>
-      <div class="pt-watch">${v.watchedAt}</div>
-      <div class="pt-actions"><button class="action-btn" onclick="event.stopPropagation();openTagEditor('${v.id}')">✏️ Tags</button><button class="action-btn del" onclick="event.stopPropagation();removeVideo('${v.id}')">✕</button></div>
+      <div class="pt-watch">${v.watchedAt||'—'}</div>
+      <div class="pt-actions">
+        <button class="action-btn" onclick="event.stopPropagation();openTagEditor('${v.id}')">✏️ Tags</button>
+        <a href="https://www.youtube.com/watch?v=${v.id}" target="_blank" class="action-btn" onclick="event.stopPropagation()">▶</a>
+        <button class="action-btn del" onclick="event.stopPropagation();removeVideo('${v.id}')">✕</button>
+      </div>
     </div>`).join('');
 }
 function renderCategoryPage(cat) {
@@ -1262,9 +1323,174 @@ function simulateConnect() {
   document.getElementById('step3-status').textContent = '✓ Done';
   document.getElementById('step3-status').className = 'step-status step-ok';
 }
-function syncPlaylist(cat) {
-  if (!STATE.connected) { alert('Connect your YouTube account first.'); return; }
-  alert(`Syncing ${cat} content from YouTube... (requires backend connector)`);
+function syncPlaylist(cat) { syncCategoryFromYT(cat); }
+
+function histLog(msg, color) {
+  const log = document.getElementById('hist-log');
+  if (!log) return;
+  log.style.display = 'block';
+  const ts  = new Date().toLocaleTimeString('en-US',{hour12:false});
+  log.innerHTML += `<span style="color:${color||'var(--muted)'}">[${ts}] ${msg}</span>\n`;
+  log.scrollTop = log.scrollHeight;
+}
+
+// ── MAIN HISTORY SYNC ──────────────────────────────────────────────────────
+async function syncHistory() {
+  const token = STATE.ytToken || localStorage.getItem('yt_access_token');
+  if (!token) {
+    alert('Connect your YouTube account first — click "Connect YouTube" in the sidebar.');
+    return;
+  }
+  const btn  = document.getElementById('hist-sync-btn');
+  const stat = document.getElementById('hist-sync-status');
+  const icon = document.getElementById('hist-sync-icon');
+  btn.disabled = true; icon.textContent = '⏳';
+  stat.textContent = 'Syncing…'; stat.style.color = 'var(--gold)';
+  document.getElementById('hist-log').innerHTML = '';
+  histLog('Starting YouTube history sync…');
+
+  let totalAdded = 0;
+
+  try {
+    // 1. Liked videos (most reliable, cross-device)
+    histLog('Fetching liked videos…');
+    let pageToken = null, likedCount = 0;
+    do {
+      const params = { part:'snippet,contentDetails', myRating:'like', maxResults:'50' };
+      if (pageToken) params.pageToken = pageToken;
+      const data = await ytAPI('/videos', params);
+      const items = data.items || [];
+      likedCount += items.length;
+      const added = mergeVideos(items.map(item => ({
+        id:        item.id,
+        title:     item.snippet.title,
+        channel:   item.snippet.channelTitle,
+        thumb:     item.snippet.thumbnails?.medium?.url || '',
+        category:  inferCategory(item.snippet.title + ' ' + item.snippet.channelTitle),
+        tags:      [],
+        watchedAt: item.snippet.publishedAt?.slice(0,10) || '',
+        duration:  item.contentDetails?.duration || '',
+        source:    'liked',
+        url:       `https://www.youtube.com/watch?v=${item.id}`,
+      })));
+      totalAdded += added;
+      pageToken = data.nextPageToken || null;
+      histLog(`  Liked videos: ${likedCount} fetched, ${added} new`, 'var(--green)');
+    } while (pageToken);
+
+    // 2. Subscriptions → recent uploads
+    histLog('Fetching subscriptions…');
+    const subData = await ytAPI('/subscriptions', { part:'snippet', mine:'true', maxResults:'20' });
+    const subs    = subData.items || [];
+    histLog(`  Found ${subs.length} subscriptions`);
+
+    for (const sub of subs.slice(0,10)) {
+      const channelId = sub.snippet.resourceId.channelId;
+      try {
+        // Get channel upload playlist
+        const chData = await ytAPI('/channels', { part:'contentDetails', id: channelId });
+        const uploadPl = chData.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+        if (!uploadPl) continue;
+        // Get recent 5 uploads
+        const plItems = await ytAPI('/playlistItems', { part:'snippet', playlistId: uploadPl, maxResults:'5' });
+        const vids = (plItems.items||[]).map(it => ({
+          id:        it.snippet.resourceId.videoId,
+          title:     it.snippet.title,
+          channel:   it.snippet.channelTitle || sub.snippet.title,
+          thumb:     it.snippet.thumbnails?.medium?.url || '',
+          category:  inferCategory(it.snippet.title + ' ' + sub.snippet.title),
+          tags:      [],
+          watchedAt: it.snippet.publishedAt?.slice(0,10) || '',
+          source:    'subscription',
+          url:       `https://www.youtube.com/watch?v=${it.snippet.resourceId.videoId}`,
+        }));
+        const added = mergeVideos(vids);
+        totalAdded += added;
+      } catch(e) { /* skip channels with errors */ }
+    }
+    histLog(`  Subscriptions processed`);
+
+    // 3. Playlists
+    histLog('Fetching playlists…');
+    const plData = await ytAPI('/playlists', { part:'snippet,contentDetails', mine:'true', maxResults:'50' });
+    histLog(`  Found ${plData.items?.length||0} playlists`);
+    for (const pl of (plData.items||[]).slice(0,5)) {
+      const plItems = await ytAPI('/playlistItems', { part:'snippet', playlistId: pl.id, maxResults:'50' });
+      const vids = (plItems.items||[]).map(it => ({
+        id:        it.snippet.resourceId?.videoId || ('pl_'+it.id),
+        title:     it.snippet.title,
+        channel:   it.snippet.videoOwnerChannelTitle || pl.snippet.title,
+        thumb:     it.snippet.thumbnails?.medium?.url || '',
+        category:  inferCategory(it.snippet.title),
+        tags:      [],
+        watchedAt: it.snippet.publishedAt?.slice(0,10) || '',
+        source:    `playlist:${pl.snippet.title}`,
+        url:       `https://www.youtube.com/watch?v=${it.snippet.resourceId?.videoId}`,
+      }));
+      const added = mergeVideos(vids);
+      totalAdded += added;
+      histLog(`  Playlist "${pl.snippet.title}": ${added} new videos`);
+    }
+
+    localStorage.setItem('yt_videos', JSON.stringify(STATE.videos));
+    updateStats();
+    renderHistory();
+    renderCategoryPage('music');
+    renderCategoryPage('entertainment');
+    renderCategoryPage('podcast');
+
+    stat.textContent = `✓ ${totalAdded} new videos`;
+    stat.style.color = 'var(--green)';
+    document.getElementById('hist-sync-sub').textContent =
+      `Last synced: ${new Date().toLocaleString()} · ${STATE.videos.length} total videos`;
+    histLog(`\n✅ Sync complete — ${totalAdded} new videos added (${STATE.videos.length} total)`, 'var(--green)');
+
+  } catch(e) {
+    stat.textContent = '✗ Sync failed';
+    stat.style.color = 'var(--accent)';
+    histLog(`✗ Error: ${e.message}`, 'var(--accent)');
+    if (e.message.includes('401') || e.message.includes('authenticate')) {
+      histLog('→ Token expired — disconnect and reconnect YouTube', 'var(--gold)');
+    }
+  } finally {
+    btn.disabled = false;
+    icon.textContent = '⟳';
+  }
+}
+
+// Merge videos into STATE.videos — returns count added
+function mergeVideos(items) {
+  const existing = new Set(STATE.videos.map(v => v.id));
+  let added = 0;
+  for (const v of items) {
+    if (!v.id || existing.has(v.id)) continue;
+    // preserve existing tags if re-added
+    STATE.videos.unshift(v);
+    existing.add(v.id);
+    added++;
+  }
+  return added;
+}
+
+// ── CATEGORY SYNC ──────────────────────────────────────────────────────────
+async function syncCategoryFromYT(cat) {
+  const token = STATE.ytToken || localStorage.getItem('yt_access_token');
+  if (!token) { alert('Connect your YouTube account first.'); return; }
+  histLog(`Syncing ${cat} from YouTube…`);
+  try {
+    await syncHistory(); // full sync covers all categories
+    renderCategoryPage(cat);
+  } catch(e) {
+    histLog(`✗ ${e.message}`, 'var(--accent)');
+  }
+}
+
+function clearHistory() {
+  if (!confirm(`Clear all ${STATE.videos.length} videos from local history? (YouTube data is unaffected)`)) return;
+  STATE.videos = [];
+  localStorage.removeItem('yt_videos');
+  renderHistory(); updateStats();
+  histLog('History cleared from local storage.', 'var(--gold)');
 }
 
 // ══════════════════════════════════
